@@ -1,0 +1,55 @@
+#!/bin/sh
+# script to archive yesterday's motion images
+
+disk=/media/disk-20g
+motion_path=$disk/motion
+#dest=wei@mac:motion-sync
+dest=wei@orchard:/media/adata-2t/motion-sync
+
+# compare date strings
+comp_date() {
+  d1=$1
+  d2=$2
+  s1=`date -d "$d1" +%s`
+  s2=`date -d "$d2" +%s`
+
+  if [ "$s1" -eq "$s2" ]; then
+    echo 0
+  elif [ "$s1" -gt "$s2" ]; then
+    echo 1
+  else
+    echo -1
+  fi
+}
+
+# move to mac-mini's 
+yesterday=`date +%Y%m%d`
+
+folders=`find $motion_path -maxdepth 1 -type d -name "20??????"`
+
+for f in $folders; do
+  fdate=`echo $f | sed 's/.*\///'`
+  echo $fdate
+
+  r=$(comp_date $yesterday $fdate)
+  if [ "$r" -lt 1 ]; then
+    continue
+  fi
+
+  cnt=`ls $f/*.avi 2>/dev/null | wc -l`
+
+  if [ "$cnt" -eq 0 ]; then 
+    echo "Remove sync'ed folder $f"
+    rm -rf $f
+  else
+    for avi in $f/*.avi; do
+      echo "--> $avi"
+      if [ -f $avi ]; then
+        rsync -avhP --remove-source-files $avi $dest/$fdate/
+      fi
+    done
+  fi
+done
+
+# -exec rsync -e ssh -avhP --remove-source-files {} wei@mac:motion-sync/ \;
+
